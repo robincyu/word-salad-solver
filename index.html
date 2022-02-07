@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+	<meta charset="utf-8">
+	<meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+	<meta content="utf-8" http-equiv="encoding">
+        <style>
+        body {
+            margin: 2%;
+            font-family: 'Roboto', sans-serif;
+        }
+        #tbltbody {
+            font-family: 'Roboto Mono', monospace;
+        }
+        .mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+        .used {
+            color: red;
+        }
+        </style>
+        <title>Word Salad Solver</title>
+        <link rel="preconnect" href="https://fonts.gstatic.com/">
+        <link href="Word%20Salad%20Solver_files/css2.css" rel="stylesheet">
+        <link href="Word%20Salad%20Solver_files/css2_002.css" rel="stylesheet">
+    </head>
+    <body>
+        <h1>
+            Word Salad Solver
+        </h1>
+        <p id="fileupload">
+            Upload wordlist: <input type="file" id="file-selector">
+        </p>
+        <p id="game" style="visibility:hidden;">
+            Current word: <input type="text" id="word" style="text-transform: uppercase;" onkeypress="return /[a-z]/i.test(event.key)"><br>
+            Tileset (leave blank for all): <input type="text" id="tileset" style="text-transform: uppercase;" onkeypress="return /[a-z]/i.test(event.key)"><br>
+            <input type="submit" value="Search" onclick="search()">
+        </p>
+        <table id="tbl" style="width: 90%; visibility:hidden;">
+            <colgroup>
+                <col style="width: 20%;" span="1">
+                <col style="width: 5%;" span="1">
+                <col style="width: 20%;" span="1">
+                <col style="width: 5%;" span="1">
+                <col style="width: 20%;" span="1">
+                <col style="width: 5%;" span="1">
+                <col style="width: 20%;" span="1">
+                <col style="width: 5%;" span="1">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th style="text-align: left;">One letter</th>
+                    <th></th>
+                    <th style="text-align: left;">Two letters</th>
+                    <th></th>
+                    <th style="text-align: left;">Three letters</th>
+                    <th></th>
+                    <th style="text-align: left;">Four letters</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="tbltbody">
+            </tbody>
+        </table>
+        <p id="errormess" style="display: none;">
+        Oh no! You cannot extend the current word. Don't worry, you can still form the following words:
+        <img src="Word%20Salad%20Solver_files/thumbs-up-smiley.png" style="float:right;">
+        </p>
+        <table id="tbl2" style="width: 20%; visibility:hidden;">
+            <thead>
+                <tr>
+                    <th style="text-align: left;">Words</th>
+                </tr>
+            </thead>
+            <tbody id="tbl2tbody">
+            </tbody>
+        </table>
+    
+    <script>
+        var words = [];
+        const output = document.getElementById('fileupload');
+        if (window.FileList && window.File) {
+            document.getElementById('file-selector').addEventListener('change', event => {
+                output.innerHTML = '';
+                for (const file of event.target.files) {
+                    var reader = new FileReader();
+                    reader.readAsText(file, "UTF-8");
+                    reader.onload = function (evt) {
+                        var str = evt.target.result;
+                        var temp = "";
+                        for (var i = 0; i < str.length; i++) {
+                            if (isLetter(str.charAt(i))) {
+                                temp += str.charAt(i);
+                            } else {
+                                if (temp.length > 0) {
+                                    words.push(temp.toUpperCase());
+                                    temp = "";
+                                }
+                            }
+                        }
+                        if (temp.length > 0) {
+                            words.push(temp.toUpperCase());
+                            temp = "";
+                        }
+                        words.sort();
+                        output.innerHTML = "";
+                        document.getElementById("game").style.visibility = "visible";
+                    }
+                    reader.onerror = function (evt) {
+                        output.innerHTML = "Error reading file.";
+                    }
+                }
+            });
+        }
+
+        function contains(a, b) {
+            // check if a is contained in b
+            // returns "?" if a not contained in b, otherwise b minus a
+            // yes, this is horrible but I don't care
+            var aLength = a.length;
+            var bLength = b.length;
+            // piece of shit javascript strings are fucking IMMUTABLE (WHY????)
+            var bUsed = [];
+            for (var i = 0; i < bLength; i++) {
+                bUsed.push(false);
+            }
+            for (var i = 0; i < aLength; i++) {
+                var found = false;
+                for (var j = 0; j < bLength; j++) {
+                    if (a.charAt(i) == b.charAt(j) && !bUsed[j]) {
+                        bUsed[j] = true;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    return ["", "?"];
+                }
+            }
+            var qat = "";
+            var rat = "";
+            for (var i = 0; i < bLength; i++) {
+                if (!bUsed[i]) {
+                    qat += "<span class='used'>" + b.charAt(i) + "</span>";
+                    rat += b.charAt(i);
+                } else {
+                    qat += b.charAt(i);
+                }
+            }
+            return [qat, rat.split('').sort().join('')];
+        }
+        function isLetter(str) {
+            return str.length === 1 && str.match(/[a-zA-Z]/i);
+        }
+        function search() {
+            var word = (document.getElementById("word").value).toUpperCase();
+            var tileset = (document.getElementById("tileset").value).toUpperCase();
+            var numberOfWords = words.length;
+            var f = [[], [], [], []];
+            var g = [[], [], [], []];
+            for (var i = 0; i < numberOfWords; i++) {
+                var l = contains(word, words[i]);
+                if (l[1] !== "?") {
+                    if (l[1].length >= 1 && l[1].length <= 4) {
+                        if (tileset === "" || contains(l[1], tileset)[1] !== "?") {
+                            f[l[1].length-1].push(l[0]);
+                            g[l[1].length-1].push(l[1]);
+                        }
+                    }
+                }
+            }
+            var leng = Math.max(f[0].length, f[1].length, f[2].length, f[3].length);
+            if (leng >= 1) {
+                document.getElementById("errormess").style.display = "none";
+                document.getElementById("tbl").style.visibility = "visible";
+                document.getElementById("tbl2").style.visibility = "hidden";
+                var tbl = document.getElementById("tbltbody");
+                tbl.innerHTML = "";
+                var tbl2 = document.getElementById("tbl2tbody");
+                tbl2.innerHTML = "";
+                for (var i = 0; i < leng; i++) {
+                    var row = tbl.insertRow(i);
+                    for (var j = 0; j < 4; j++) {
+                        var cell_word = row.insertCell(2*j);
+                        var cell_letters = row.insertCell(2*j+1);
+                        if (f[j].length > i) {
+                            cell_word.innerHTML = f[j][i];
+                            cell_letters.innerHTML = "<span class='used'>" + g[j][i] + "</span>";
+                        }
+                    }
+                }
+            } else {
+                var h = [];
+                for (var i = 0; i < numberOfWords; i++) {
+                    var l = contains(words[i], tileset);
+                    if (l[1] !== "?") {
+                        h.push(words[i]);
+                    }
+                }
+                var tbl2 = document.getElementById("tbl2tbody");
+                if (h.length === 0) {
+                    tbl2.classList.remove("mono");
+                    h.push("<i>lol, empty</i>");
+                } else {
+                    tbl2.classList.add("mono");
+                }
+                var tbl = document.getElementById("tbltbody");
+                tbl.innerHTML = "";
+                var tq = h.length;
+                tbl2.innerHTML = "";
+                for (var i = 0; i < tq; i++) {
+                    var row = tbl2.insertRow(i);
+                    var cell_word = row.insertCell(0);
+                    cell_word.innerHTML = h[i];
+                }
+                document.getElementById("errormess").style.display = "block";
+                document.getElementById("tbl").style.visibility = "hidden";
+                document.getElementById("tbl2").style.visibility = "visible";
+            }
+        }
+    </script>
+
+
+</body></html>
